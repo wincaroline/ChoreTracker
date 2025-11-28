@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChoreLog, FamilyMember, CHORES } from './types';
-import { getLogs, saveLog, getMembers, getCurrentMemberId, saveCurrentMemberId, deleteLog, saveMembers, clearAllLogs } from './services/storageService';
+import { saveLog, getMembers, getCurrentMemberId, saveCurrentMemberId, deleteLog, saveMembers, clearAllLogs, subscribeToLogs } from './services/storageService';
 import StatsView from './components/StatsView';
 import * as LucideIcons from 'lucide-react';
 
@@ -24,9 +23,15 @@ const App: React.FC = () => {
 
   // Initial Load
   useEffect(() => {
-    setLogs(getLogs());
+    // Subscribe to Firebase real-time updates
+    const unsubscribe = subscribeToLogs((liveLogs) => {
+      setLogs(liveLogs);
+    });
+
     setMembers(getMembers());
     setActiveMemberId(getCurrentMemberId());
+    
+    return () => unsubscribe();
   }, []);
 
   // Group chores for display in selector
@@ -56,37 +61,35 @@ const App: React.FC = () => {
     misc: 'Miscellaneous'
   };
 
-  const handleLogChore = (memberId: string, choreId: string) => {
+  const handleLogChore = async (memberId: string, choreId: string) => {
     const newLog: ChoreLog = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      id: 'temp-' + Date.now(), // ID will be replaced by Firebase
       memberId,
       choreId,
       timestamp: Date.now(),
       dateString: new Date().toISOString().split('T')[0]
     };
     
-    const updatedLogs = saveLog(newLog);
-    setLogs(updatedLogs);
-    return updatedLogs;
+    await saveLog(newLog);
+    // No need to setLogs, subscription handles it
   };
 
-  const handleBatchSave = () => {
+  const handleBatchSave = async () => {
     if (!activeMemberId || selectedChoreIds.length === 0) return;
 
-    let updatedLogs = logs;
     // We iterate manually to ensure unique IDs and timestamps slightly offset if needed
-    selectedChoreIds.forEach((choreId, index) => {
+    for (let i = 0; i < selectedChoreIds.length; i++) {
+       const choreId = selectedChoreIds[i];
        const newLog: ChoreLog = {
-        id: Date.now().toString() + index,
+        id: 'temp-' + Date.now() + i,
         memberId: activeMemberId,
         choreId,
-        timestamp: Date.now() + index, // slight offset to keep order
+        timestamp: Date.now() + i, // slight offset to keep order
         dateString: new Date().toISOString().split('T')[0]
       };
-      updatedLogs = saveLog(newLog);
-    });
+      await saveLog(newLog);
+    }
     
-    setLogs(updatedLogs);
     setNotification(`Logged ${selectedChoreIds.length} chores! Awesome! 🎉`);
     setTimeout(() => setNotification(null), 3000);
     
@@ -95,9 +98,8 @@ const App: React.FC = () => {
     setIsLogModalOpen(false);
   };
 
-  const handleDeleteLog = (logId: string) => {
-    const updatedLogs = deleteLog(logId);
-    setLogs(updatedLogs);
+  const handleDeleteLog = async (logId: string) => {
+    await deleteLog(logId);
     setNotification('Activity removed.');
     setTimeout(() => setNotification(null), 2000);
   };
@@ -106,9 +108,8 @@ const App: React.FC = () => {
     setIsClearConfirmOpen(true);
   };
 
-  const performClearAllLogs = () => {
-    const updatedLogs = clearAllLogs();
-    setLogs(updatedLogs);
+  const performClearAllLogs = async () => {
+    await clearAllLogs();
     setNotification('All history cleared.');
     setTimeout(() => setNotification(null), 2000);
     setIsClearConfirmOpen(false);

@@ -1,5 +1,5 @@
 {
-  "name": "ChoreHarmony",
+  "name": "ChoreLog",
   "description": "A mobile-first family chore tracker that helps track activity, visualize workload balance, and uses AI to provide motivation and efficiency insights.",
   "requestFramePermissions": []
 }

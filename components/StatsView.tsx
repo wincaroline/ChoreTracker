@@ -82,7 +82,7 @@ const CustomStackShape = (props: any) => {
           <g 
             key={log.id}
             onClick={handleClick}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', outline: 'none' }}
           >
             <rect
               x={x}
@@ -92,8 +92,7 @@ const CustomStackShape = (props: any) => {
               fill={log.color}
               rx={4}
               ry={4}
-              opacity={0.95}
-              className="transition-opacity hover:opacity-100"
+              opacity={1}
             />
             {showIcon && (
               <foreignObject x={x} y={itemY} width={width} height={blockHeight} style={{ pointerEvents: 'none' }}>

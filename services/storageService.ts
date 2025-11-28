@@ -1,46 +1,45 @@
-
 import { ChoreLog, FamilyMember, DEFAULT_MEMBERS } from '../types';
+import { db } from '../firebaseConfig';
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 
-const LOGS_KEY = 'chore_harmony_logs_v6';
 const MEMBERS_KEY = 'chore_harmony_members_v5';
 const CURRENT_MEMBER_KEY = 'chore_harmony_current_member_v5';
 
-export const getLogs = (): ChoreLog[] => {
-  try {
-    const stored = localStorage.getItem(LOGS_KEY);
-    if (stored) {
-      const parsedLogs = JSON.parse(stored);
-      if (Array.isArray(parsedLogs)) {
-        return parsedLogs;
-      }
-    }
-    
-    // Default to empty array if no logs exist
-    return [];
-  } catch (e) {
-    console.error("Failed to parse logs", e);
-    return [];
-  }
+// --- LOGS (FIREBASE) ---
+
+export const subscribeToLogs = (callback: (logs: ChoreLog[]) => void) => {
+  const q = query(collection(db, "logs"), orderBy("timestamp", "desc"));
+  
+  return onSnapshot(q, (snapshot) => {
+    const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChoreLog));
+    callback(logs);
+  });
 };
 
-export const saveLog = (log: ChoreLog) => {
-  const current = getLogs();
-  const updated = [log, ...current];
-  localStorage.setItem(LOGS_KEY, JSON.stringify(updated));
-  return updated;
+export const saveLog = async (log: ChoreLog) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id, ...logData } = log; 
+  await addDoc(collection(db, "logs"), logData);
 };
 
-export const deleteLog = (logId: string) => {
-  const current = getLogs();
-  const updated = current.filter(l => l.id !== logId);
-  localStorage.setItem(LOGS_KEY, JSON.stringify(updated));
-  return updated;
+export const deleteLog = async (logId: string) => {
+  await deleteDoc(doc(db, "logs", logId));
 };
 
-export const clearAllLogs = () => {
-  localStorage.setItem(LOGS_KEY, JSON.stringify([]));
-  return [];
+export const clearAllLogs = async () => {
+  const q = query(collection(db, "logs"));
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(db);
+  
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  
+  await batch.commit();
 };
+
+
+// --- MEMBERS (LOCAL STORAGE) ---
 
 export const getMembers = (): FamilyMember[] => {
   try {
